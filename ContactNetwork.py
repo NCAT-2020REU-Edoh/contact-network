@@ -38,6 +38,11 @@ class ContactNetwork:
             have the weight attribute defined for all its edges. However, the state of the nodes, the time
             the node changed state, and the time elapsed are all encoded as attributes to the nodes and graph,
             respectively, by the algorithm.
+            
+            The 'tau' graph attribute is used to encode the current time of the state of the entire graph.
+            This allows us to look at every different iteration of the contact network modeling algorithm
+            as working with a snapshot of the contact network graph. As such, this attribute is used by the
+            _update() function to modify the states of the nodes.
 
         Returns
         -------
@@ -45,6 +50,9 @@ class ContactNetwork:
 
         """
         self.graph = graph.copy()
+        self.graph.graph["tau"] = 0
+        for node in self.graph.nodes():
+            self._change_node_state(node, self.State.SUSCEPTIBLE)
     
     class State(Enum):
         """
@@ -97,37 +105,77 @@ class ContactNetwork:
         """
         return self.graph.nodes[node]["state"]
     
-    def model_contact_network(self, num_iterations, infected_nodes):
+    def model_contact_network(self, infected_nodes, num_iterations):
         """
         Begins modeling the graph associated with this instance of the class with the specified number of
         iterations and starting set of infected nodes.
 
         Parameters
         ----------
+        infected_nodes : list of any hashable python objects except None.
+            List of initially infected nodes.
         num_iterations : int
             The specified number of iterations for which the algorithm will run.
-        infected_nodes : list of str
-            List of initially infected nodes.
 
         Returns
         -------
         None.
 
         """
-        # This graph attribute is used to encode the current time of the state of the entire graph.
-        # This allows us to look at every different iteration of the contact network modeling algorithm
-        # as working with a snapshot of the updating graph.
-        self.graph.graph["tau"] = 0
+        for node in infected_nodes:
+            self._change_node_state(node, self.State.INFECTED)
         
-        for node in self.graph.nodes():
-            self._change_node_state(node, self.State.SUSCEPTIBLE)
+        print("Press enter to advance at the end of every iteration")
+        for tau in range(num_iterations):
+            print("Time:", tau)
+            modified_node_states = self._update()
+            for node, state in modified_node_states.items():
+                print("node:", node, "->", state)
+            input()
+    
+    def get_animation_func(self, infected_nodes, *artists):
+        """
+        Returns the func used to animate networkx graphs using FuncAnimation from Matplotlib.animation.
+        
+        The local data structures and variables defined in this function will be stored in the returned
+        function closure.
+
+        Parameters
+        ----------
+        infected_nodes : list of any hashable python objects except None.
+            List of initially infected nodes.
+        *artists : collections.PathCollection and collections.LineCollection objects
+            The artist objects that represent the nodes and the edges.
+
+        Returns
+        -------
+        function
+            The animation function that is used in Matplotlib.animation.FuncAnimation(...).
+
+        """
+        nodes = artists[0]
+        text = artists[2]
         
         for node in infected_nodes:
             self._change_node_state(node, self.State.INFECTED)
         
-        for tau in range(1, num_iterations):
-            self._update()
-            input("Continue?")
+        def _get_node_color(node):
+            return {self.State.SUSCEPTIBLE: "#0000ff",
+                    self.State.INFECTED: "#ff0000",
+                    self.State.RECOVERED: "#00ff00",
+                    self.State.EXPOSED: "#ffa500"}[self.graph.nodes[node]["state"]]
+        
+        idx = dict((node, idx) for (idx, node) in enumerate(self.graph.nodes()))
+        colors = [_get_node_color(node) for node in self.graph.nodes()]
+        def animate(frame):
+            modified_node_states = self._update()
+            for node in modified_node_states:
+                color = _get_node_color(node)
+                colors[idx[node]] = color
+            nodes.set_facecolor(colors)
+            text.set_text("Day " + str(frame))
+            return artists
+        return animate
     
     def _update(self):
         """
@@ -136,7 +184,8 @@ class ContactNetwork:
 
         Returns
         -------
-        None.
+        modified_node_states : dict
+            A dictionary that maps all the nodes that were modified to the their respective modified state.
 
         """
         
@@ -169,3 +218,4 @@ class ContactNetwork:
         for node in modified_node_states:
             self._change_node_state(node, modified_node_states[node])
         self.graph.graph["tau"] += 1
+        return modified_node_states
