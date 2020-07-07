@@ -26,13 +26,25 @@ legend_elements = [Line2D([0], [0], marker='o', color='w', lw=4, label='Suscepti
                    Line2D([0], [0], marker='o', color='w', label='Exposed', markersize=14, markerfacecolor='orange')]
 
 ax.set_title("Contact Network SEIR Model")
-ax.legend(handles=legend_elements, loc='upper left')
 
 pos = nx.spring_layout(g)
 nodes = nx.draw_networkx_nodes(g,pos, ax=ax, edgecolors="#000000")
 edges = nx.draw_networkx_edges(g,pos, ax=ax)
-text = ax.text(1,1,"Day 0")
+
+"""
+TODO: Set position of text to be in an appropriate corner. Even though x_0=0 and y_0=0
+are supposed to correspond to the bottom left corner, it changes after plotting the graph
+"""
+text = ax.text(0,0,"Day 0")
+
 nx.draw_networkx_labels(g, pos, font_color="#ffffff")
+
+# Padding to center the graph in the axes
+ax.margins(0.1)
+
+# Draw the legend after the nodes to automatically place th legend in the most appropriate corner
+# without specifying loc (e.g. loc='upper right') paramter
+ax.legend(handles=legend_elements)
 
 cn = ContactNetwork(g)
 func = cn.get_animation_func([0,1], nodes, edges, text)
@@ -41,3 +53,4 @@ func = cn.get_animation_func([0,1], nodes, edges, text)
 TODO: Setting blit=True for animation.FuncAnimation draws over labels after the first iteration.
 """
 ani = animation.FuncAnimation(fig, func, np.arange(1, 200), interval=500)
+plt.show()
