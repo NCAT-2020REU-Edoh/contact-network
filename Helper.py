@@ -45,6 +45,9 @@ class Probability:
             P(A + B + C) = P(A) + P(B) + P(C) - jointProbability(A,B) - jointProbability(A,C)
                 - jointProbability(B,C) + jointProbability(A,B,C)
             etc.
+        
+        However, this is equivalent to
+            P(A+B) = 1 - (1-P(A))*(1-P(B))
 
         Parameters
         ----------
@@ -57,10 +60,39 @@ class Probability:
             The union probability of the independent events.
 
         """
-        helper = lambda i: ((-1)**(i+1))*np.sum(
-            [Probability.jointProbability(e) for e in combinations(e, i)]
-        )
-        return np.sum([helper(i) for i in range(1,len(e)+1)])
+        return 1 - Probability.jointProbability([1-x for x in e])
+    
+    @staticmethod
+    def millers_algorithm(e):
+        """
+        Implementation of Miller's algorithm of computing union probabilities of independent events
+        
+        Reference:
+            Miller, G. D. (1968). Programming Techniques: An algorithm for the probability of the union
+                of a large number of events. Communications of the ACM, 11(9), 630-631.
+                doi:10.1145/364063.364084
+
+        Parameters
+        ----------
+        e : array_like
+            List of the probabilities of all the independent events.
+
+        Returns
+        -------
+        union probability : depends on the types of the elements of e
+            The union probability of the independent events.
+
+        """
+        n = len(e)
+        prob = np.array([e]).T
+        prev = prob
+        res = prev.sum()
+        for r in range(2, n+1):
+            size = n-r+1
+            u = np.triu(np.ones([size]*2),0)
+            prev = np.matmul(u, prev[1:]) * prob[0:size]
+            res += ((-1)**(r-1)) * prev.sum()
+        return res
 
 
 class Distribution:
@@ -98,4 +130,14 @@ class Distribution:
     
     @staticmethod
     def sampleInfectionDistribution():
-        pass
+        """
+        Samples the infectious rate normal distribution, which has a mean of 9 days and a standard deviation
+        of 2 days.
+
+        Returns
+        -------
+        sample: scalar
+            Sample from the normal distribution.
+
+        """
+        return np.random.normal(9,2)

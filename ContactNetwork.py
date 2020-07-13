@@ -214,6 +214,9 @@ class ContactNetwork:
                 z = Prob.unionProbability([T(r,t) for (r,t) in edges])
                 if (z >= Dist.sampleExposureDistribution()):
                     modified_node_states[node] = self.State.EXPOSED
+            elif (state == self.State.EXPOSED):
+                if (tau - self.graph.nodes[node]["time_changed_state"] >= Dist.sampleInfectionDistribution()):
+                    modified_node_states[node] = self.State.INFECTED
         # apply all the modifications to the networkx graph
         for node in modified_node_states:
             self._change_node_state(node, modified_node_states[node])
