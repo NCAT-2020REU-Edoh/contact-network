@@ -9,6 +9,7 @@ Created on Wed Jun 24 10:50:05 2020
 from enum import Enum
 from Helper import Probability as Prob
 from Helper import Distribution as Dist
+import numpy as np
 
 class ContactNetwork:
     """
@@ -132,6 +133,56 @@ class ContactNetwork:
             for node, state in modified_node_states.items():
                 print("node:", node, "->", state)
             input()
+    
+    def collect_statistics(self, infected_nodes, num_iterations):
+        """
+        Tracks the states of the nodes in the graph for every iteration.
+        
+        The returned matrix contains three rows corresponding to exposed, infected and recovered nodes.
+        Each element in the row is the total number of nodes that belong to that state at that iteration.
+        The susceptible row was omitted since it can easily be derived from the first three rows.
+
+        Parameters
+        ----------
+        infected_nodes : ist of any hashable python objects except None.
+            List of initially infected nodes.
+        num_iterations : int
+            The specified number of iterations for which the algorithm will run.
+
+        Returns
+        -------
+        stats : Array of float64
+            numpy ndarray with (3, num_iterations) shape and float64 type.
+
+        """
+        for node in infected_nodes:
+            self._change_node_state(node, self.State.INFECTED)
+        
+        stats = np.zeros([3, num_iterations+1])
+        state_map = dict({
+            self.State.EXPOSED: 0,
+            self.State.INFECTED: 1,
+            self.State.RECOVERED: 2
+        })
+        
+        stats[state_map[self.State.INFECTED]][0] = len(infected_nodes)
+        
+        for tau in range(1, num_iterations+1):
+            modified_node_states = self._update()
+            
+            total_nodes_modified = [0,0,0]
+            for node in modified_node_states:
+                state = modified_node_states[node]
+                total_nodes_modified[state_map[state]] += 1
+            
+            idx_e = state_map[self.State.EXPOSED]
+            idx_i = state_map[self.State.INFECTED]
+            idx_r = state_map[self.State.RECOVERED]
+            stats[idx_e][tau] = stats[idx_e][tau-1] + total_nodes_modified[idx_e] - total_nodes_modified[idx_i]
+            stats[idx_i][tau] = stats[idx_i][tau-1] + total_nodes_modified[idx_i] - total_nodes_modified[idx_r]
+            stats[idx_r][tau] = stats[idx_r][tau-1] + total_nodes_modified[idx_r]
+        
+        return stats
     
     def get_animation_func(self, infected_nodes, *artists):
         """
